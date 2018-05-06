@@ -9,8 +9,13 @@ output:
 
 # Gender Bias Against Directors in Film Field?
 
+According to a paper "Gender Stereotypes Are Alive, Well, and Busy Producing Workplace Discrimination" published by [Cambridge University](https://www.cambridge.org/core/journals/industrial-and-organizational-psychology/article/gender-stereotypes-are-alive-well-and-busy-producing-workplace-discrimination/79B1C722310ABBBE8D0EA90157689B97), females have been a victim of gender bias in workplace. Recently, there have been many movements related to gender issues like "MeToo" against sexual harassment and assult and increased women's vocie against wage discrimination or glass ceiling in their workplace.
 
-We sought to determine if there is an association between gender of directors and the quality of movie. 
+Especially in film field, gender discrimination and stereotype have been hot issues. Our hypothesis is that there has been implicit prejudice that a female director would make a low quality movie compared to one by a male director. We sought to determine if female and male directors are well diversified in film field and if there is an association between gender of directors and the quality of movie. 
+
+We used **imdb** database source from Smith College and extracted recent 10-year best movies based on rating and their revenue. We set the production year from 2008 to 2018 in order to 
+
+
 
 ```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -19,7 +24,6 @@ library(dplyr)
 library(mdsr)
 library(RMySQL)
 db <- dbConnect_scidb(dbname = "imdb")
-
 db %>%
   dbGetQuery("SELECT * FROM kind_type;")
 ```
@@ -84,7 +88,7 @@ movie_id1<- movie_id %>%
 
 head(movie_id)
 
-# best 100 movies with their movie_id
+# Joining best 100 movies with their movie_id
 movie_id2 <- movie_id1 %>%
   inner_join(best_movies, by = c("title"= "title", "production_year" = "production_year")) 
 
@@ -221,4 +225,31 @@ mutate (Difficulty= if_else(as.numeric(numeric_rating)<10, "Easy", ifelse(as.num
 
 
 ```
+
+
+According to our data, 5% of best 100 movies is directed by female director, which means gender diversity is not satisfied. 
+In terms of the movie quality, we could not find significant evidence to prove that the effect of female directors on film performance would be less than the effect of male directors.  
+In our graph, red points (movies by female directors) are situated on high revenue and high movie rating. 
+
+
+
+Through our database querying, we conclude that gender diversity would help to improve the film field. Even if there are a few female directors who made big hit, their impact is not small.  
+
+Not only through our data findings, there have been many recent papers to show that gender diversity would be good for better environment and more prosperity in film field. According to a paper "Female Directors And Firm Performance" published by [Kwik Kian Gie School of Business](https://www.researchgate.net/publication/317183034_FEMALE_DIRECTORS_AND_FIRM_PERFORMANCE_EVIDENCE_FROM_THE_UK_LISTED_FIRMS?enrichId=rgreq-28cf48989bff249ec4e0ef497945aa8b-XXX&enrichSource=Y292ZXJQYWdlOzMxNzE4MzAzNDtBUzo0OTkxNjcwMzU0MzI5NjBAMTQ5NjAyMjEwMzQ3NQ%3D%3D&el=1_x_2&_esc=publicationCoverPdf), gender diversity helps to improve creativity, innovation, and decision making for better problem solvings, therefore, causes positive results on film market.
+
+
+
+**LINKS**
+
+GitHub repository[^1]
+
+Gender Stereotypes Are Alive, Well, and Busy Producing Workplace Discrimination, Cambridge University [^2]
+
+Female Directors And Firm Performance, Kwik Kian Gie School of Business [^3]
+
+[^1]: 
+[^2]: https://www.cambridge.org/core/journals/industrial-and-organizational-psychology/article/gender-stereotypes-are-alive-well-and-busy-producing-workplace-discrimination/79B1C722310ABBBE8D0EA90157689B97
+[^3]: https://www.researchgate.net/publication/317183034_FEMALE_DIRECTORS_AND_FIRM_PERFORMANCE_EVIDENCE_FROM_THE_UK_LISTED_FIRMS?enrichId=rgreq-28cf48989bff249ec4e0ef497945aa8b-XXX&enrichSource=Y292ZXJQYWdlOzMxNzE4MzAzNDtBUzo0OTkxNjcwMzU0MzI5NjBAMTQ5NjAyMjEwMzQ3NQ%3D%3D&el=1_x_2&_esc=publicationCoverPdf 
+Female Directors And Firm Performance, Kwik Kian Gie School of Business 
+
 
