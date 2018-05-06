@@ -1,6 +1,7 @@
 ---
 title: "192_MP4"
 author: "Dasom An & Janell Lin"
+date: "May 11th, 2018"
 output: 
  html_document:
    code_folding: hide
@@ -130,6 +131,9 @@ movie_gross_1 <- movie_gross %>%
 movie_gross100<- movie_gross_1%>%
   inner_join(movie_id2, by= c("movie_id"="movie_id"))%>%
   head(100)
+
+movie_test <- movie_gross100 %>%
+  mutate(Revenue=as.numeric(gross_info))
   
 ```
 
@@ -192,7 +196,8 @@ ggplot(data=MP_info, aes(x=gross_info, y=rating)) +
   geom_point(aes(color=gender)) +
   labs(title = "Quality of Best 100 Movies by Male and Female Directors", x = "Revenue($)", y = "Rating")
  
-  
+--------
+  CHECKING THROUGH HERE !! 
    
 # We need to set the revenue units first to set x-axis to annotate 
   scale_y_discrete(labels = c("4.5", "5.0", "5.5", "6.0", "6.5", "7.0", "7.5", "8.0", "8.5"), limits = c(4.0, 9.0), breaks = seq(4.5,8.5,0.5)) +
@@ -203,9 +208,16 @@ ggplot(data=MP_info, aes(x=gross_info, y=rating)) +
 annotate("segment", x=1940, xend=1948, y=0.5, yend=0.5, color="black")+
 annotate("segment", x=1940, xend=1940, y=0.4, yend=0.5, color="black") +
 
-  labels =c("1940", "'60", "'80", "2000" ), limits =c(1930,2012) ,breaks =seq(1940,2000,20
+labels =c("1940", "'60", "'80", "2000" ), limits =c(1930,2012) ,breaks =seq(1940,2000,20
 
-  
+
+                                                                            
+# Testing changing gross things to number                                                                              
+movie_test <- movie_gross100 %>%
+  mutate(Revenue=as.numeric(gross_info))                                                                              
+                                                                              
+# Example from mp3                                                                               
+mutate (Difficulty= if_else(as.numeric(numeric_rating)<10, "Easy", ifelse(as.numeric(numeric_rating)<30, "Moderate", "Hard")))
 
 
 ```
