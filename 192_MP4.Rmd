@@ -1,0 +1,212 @@
+---
+title: "192_MP4"
+author: "Dasom An & Janell Lin"
+output: 
+ html_document:
+   code_folding: hide
+---
+
+# Gender Bias Against Directors in Film Field?
+
+
+We sought to determine if there is an association between gender of directors and the quality of movie. 
+
+```{r, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(mdsr)
+library(RMySQL)
+db <- dbConnect_scidb(dbname = "imdb")
+
+db %>%
+  dbGetQuery("SELECT * FROM kind_type;")
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Extracting 100 best movies info from database
+
+sql <- "
+SELECT t.id, t.title, t.production_year, mii.info AS votes, mii2.info AS rating
+FROM title t
+JOIN movie_info_idx mii ON mii.movie_id = t.id
+JOIN movie_info_idx mii2 ON mii2.movie_id = t.id
+WHERE t.production_year >= 2008
+AND t.kind_id = 1
+AND mii.info_type_id = 100
+AND mii2.info_type_id = 101
+AND mii.info > 100000
+ORDER BY mii2.info desc;
+"
+best_movies <- db %>%
+  dbGetQuery(sql)
+head(best_movies)
+
+best_movies[!duplicated(best_movies[,c("title")]), ]
+
+best_movies100 <- best_movies %>%
+  head(100)
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Extracting directors info from database
+
+sql_1 <- "SELECT n.name, ci.role_id, person_id,  movie_id, n.gender 
+FROM cast_info ci
+JOIN name n ON n.id = ci.person_id
+WHERE role_id = '8';
+"
+people_info <- db %>%
+  dbGetQuery(sql_1)
+head(people_info)
+
+all_info<- people_info %>%
+  select(name, person_id, gender, movie_id)%>%
+  group_by(name, person_id, gender, movie_id)%>%
+  summarise(num=n()) 
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Join movie_id with best_movies100 for their movie_id
+
+sql_2 <- "
+SELECT movie_id, title, production_year, id 
+FROM aka_title;
+"
+movie_id <- db %>%
+  dbGetQuery(sql_2)
+
+movie_id1<- movie_id %>%
+  filter(production_year>=2008)
+ group_by (movie_id, title) %>%
+  summarise (num = n())
+
+head(movie_id)
+
+# best 100 movies with their movie_id
+movie_id2 <- movie_id1 %>%
+  inner_join(best_movies, by = c("title"= "title", "production_year" = "production_year")) 
+
+movie_id100<-movie_id2 %>%
+  head (100)
+
+movie_id100[!duplicated(movie_id100[,c("title")]), ]
+```
+
+
+```{r, message=FALSE, warning=FALSE}
+# Extracting 100 best movies gross info from database
+
+sql_gross <- "
+SELECT t.id, t.title, mi.info AS gross_info
+FROM title t
+JOIN movie_info mi ON mi.movie_id = t.id;
+"
+
+gross <- db %>%
+dbGetQuery(sql_gross)
+head(gross)
+
+
+dbGetQuery(db, "SELECT * FROM info_type WHERE info = 'gross';")
+
+dbGetQuery(db, "
+SELECT * FROM info_type 
+WHERE info LIKE '%gross%';
+")
+
+movie_gross<- dbGetQuery(db, "
+SELECT t.id, t.title, mi.info AS gross_info, movie_id, production_year
+FROM title t
+JOIN movie_info mi ON mi.movie_id = t.id
+WHERE mi.info_type_id = 107
+")
+
+movie_gross_1 <- movie_gross %>%
+  group_by (movie_id)%>%
+  filter(grepl("USA", gross_info))%>%
+  summarise(max(gross_info))
+
+movie_gross100<- movie_gross_1%>%
+  inner_join(movie_id2, by= c("movie_id"="movie_id"))%>%
+  head(100)
+  
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Extracting gross info for best movies
+
+sql_gross <- "
+SELECT t.id, t.title, mi.info AS gross_info
+FROM title t
+JOIN movie_info mi ON mi.movie_id = t.id;
+"
+
+gross <- db %>%
+dbGetQuery(sql_gross)
+head(gross)
+
+
+dbGetQuery(db, "SELECT * FROM info_type WHERE info = 'gross';")
+
+dbGetQuery(db, "
+SELECT * FROM info_type 
+WHERE info LIKE '%gross%';
+")
+
+movie_gross<- dbGetQuery(db, "
+SELECT t.id, t.title, mi.info AS gross_info, movie_id, production_year
+FROM title t
+JOIN movie_info mi ON mi.movie_id = t.id
+WHERE mi.info_type_id = 107
+")
+
+movie_gross_1 <- movie_gross %>%
+  group_by (movie_id)%>%
+  filter(grepl("USA", gross_info))%>%
+  summarise(max(gross_info))
+
+movie_gross100<- movie_gross_1%>%
+  inner_join(movie_id2, by= c("movie_id"="movie_id"))%>%
+  head(100)
+
+names(movie_gross100)[names(movie_gross100)=="max(gross_info)"]<-"gross_info" 
+```
+
+```{r, message=FALSE, warning=FALSE}
+# Joining directors info with best movies
+
+movie_people_info <- movie_gross100 %>%
+  inner_join(all_info, by= c("movie_id"="movie_id"))
+
+MP_info <- movie_people_info %>%
+  select(title,movie_id, gross_info, production_year,gender,rating,votes, name)
+
+```
+
+```{r}
+# Visualizing findings
+library(scales)
+
+ggplot(data=MP_info, aes(x=gross_info, y=rating)) +
+  geom_point(aes(color=gender)) +
+  labs(title = "Quality of Best 100 Movies by Male and Female Directors", x = "Revenue($)", y = "Rating")
+ 
+  
+   
+# We need to set the revenue units first to set x-axis to annotate 
+  scale_y_discrete(labels = c("4.5", "5.0", "5.5", "6.0", "6.5", "7.0", "7.5", "8.0", "8.5"), limits = c(4.0, 9.0), breaks = seq(4.5,8.5,0.5)) +
+    scale_x_discrete(labels = c("25M", "50M", "75M", "100M"), limits = c(0,105000000), breaks = seq(25000000,100000000, 25000000)) 
+  
+
+# Examples of annotating and so on from babynames hw
+annotate("segment", x=1940, xend=1948, y=0.5, yend=0.5, color="black")+
+annotate("segment", x=1940, xend=1940, y=0.4, yend=0.5, color="black") +
+
+  labels =c("1940", "'60", "'80", "2000" ), limits =c(1930,2012) ,breaks =seq(1940,2000,20
+
+  
+
+
+```
+
