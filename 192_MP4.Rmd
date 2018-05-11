@@ -7,13 +7,22 @@ output:
    code_folding: hide
 ---
 
-# Gender Bias Against Directors in Film Field?
+# Gender Behind the Scenes of Your Favorite Movies
 
-According to a paper "Gender Stereotypes Are Alive, Well, and Busy Producing Workplace Discrimination" published by [Cambridge University](https://www.cambridge.org/core/journals/industrial-and-organizational-psychology/article/gender-stereotypes-are-alive-well-and-busy-producing-workplace-discrimination/79B1C722310ABBBE8D0EA90157689B97), females have been a victim of gender bias in workplace. Recently, there have been many movements related to gender issues like "MeToo" against sexual harassment and assult and increased women's vocie against wage discrimination or glass ceiling in their workplace.
 
-Especially in film field, gender discrimination and stereotype have been hot issues. Our hypothesis is that there has been implicit prejudice that a female director would make a low quality movie compared to one by a male director. We sought to determine if female and male directors are well diversified in film field and if there is an association between gender of directors and the quality of movie. 
+Recently, there have been many movements related to gender issues. Particularly in the workplace, there is increased women's voice against discrimination and greater inclusivity and equality in the workplace. But has any progress been made yet? Could numbers tell us some insights?
 
-We used **imdb** database source from Smith College and extracted recent 10-year best movies based on rating and their revenue. We set the production year from 2008 to 2018 in order to 
+Dr. Stacy Smith from the University of Southern California studies studied [900 movies](https://annenberg.usc.edu/sites/default/files/Dr_Stacy_L_Smith-Inequality_in_900_Popular_Films.pdf)  from 2007 to 2017. She found that what is shown on screen is a highly male dominated world. The ratio of male to female is 2.3 to 1 and the percentage of women presented on screen has not improved significantly since a decade ago.
+
+![Figure 1](https://a.scpr.org/i/1bd58f64c3971ded4811d79fc316ae88/166856-full.jpg)
+
+
+
+There has been much attention given to the inclusion and portrayal of actors and actresses in movies. We often forget what there are much more to movie production then what is on screen. Behind the scenes are large teams of people occupying different roles who shape the visuals, content, and intent of movies. They make critical decisions about the characters presented on screen and how they are portrayed. These behind the scene roles include but not limited to producers, writers, composers, costume designers, directors, and cinematographers. 
+
+Have you ever wondered how inclusive/ gender balance is in each role?
+
+Looking at 450 US movies that are considered popular movies from 2008 to present in the Internet Movie Database (IMDB) gives a glimpse into the film industry workplace inclusivity.
 
 
 
@@ -24,13 +33,13 @@ library(dplyr)
 library(mdsr)
 library(RMySQL)
 db <- dbConnect_scidb(dbname = "imdb")
-db %>%
-  dbGetQuery("SELECT * FROM kind_type;")
+library (gridExtra)
+
 ```
 
-```{r, message=FALSE, warning=FALSE}
-# Extracting 100 best movies info from database
-
+```{r, message=FALSE, warning=FALSE,results='hide'}
+# Extracting movies with more than 10,000 votes from database
+# indexed WHERE with join and filter to increase efficiency
 sql <- "
 SELECT t.id, t.title, t.production_year, mii.info AS votes, mii2.info AS rating
 FROM title t
@@ -40,39 +49,48 @@ WHERE t.production_year >= 2008
 AND t.kind_id = 1
 AND mii.info_type_id = 100
 AND mii2.info_type_id = 101
-AND mii.info > 100000
-ORDER BY mii2.info desc;
+AND mii.info > 10000;
 "
 best_movies <- db %>%
   dbGetQuery(sql)
-head(best_movies)
 
 best_movies[!duplicated(best_movies[,c("title")]), ]
 
-best_movies100 <- best_movies %>%
-  head(100)
 ```
 
-```{r, message=FALSE, warning=FALSE}
-# Extracting directors info from database
+```{r,message=FALSE, warning=FALSE, results='hide'}
+# get role types
+sql_0 <- "SELECT * FROM imdb.role_type;"
+
+role_type <- db %>%
+  dbGetQuery(sql_0)
+```
+
+```{r, message=FALSE, warning=FALSE,results='hide'}
+# Extracting directors, composers, costume designers, cinematographers info from database
 
 sql_1 <- "SELECT n.name, ci.role_id, person_id,  movie_id, n.gender 
 FROM cast_info ci
 JOIN name n ON n.id = ci.person_id
-WHERE role_id = '8';
+WHERE role_id = '8'
+OR role_id = '7'
+OR role_id = '6'
+OR role_id = '5'
+OR role_id = '4'
+OR role_id = '3';
 "
 people_info <- db %>%
   dbGetQuery(sql_1)
-head(people_info)
+
 
 all_info<- people_info %>%
-  select(name, person_id, gender, movie_id)%>%
-  group_by(name, person_id, gender, movie_id)%>%
-  summarise(num=n()) 
+  select(role_id, gender, movie_id)%>%
+  group_by(role_id, gender, movie_id)%>%
+  summarise(num=n())
 ```
 
-```{r, message=FALSE, warning=FALSE}
-# Join movie_id with best_movies100 for their movie_id
+```{r, message=FALSE, warning=FALSE,results='hide'}
+# Getting movie_id for the movies with more than 10,000 votes
 
 sql_2 <- "
 SELECT movie_id, title, production_year, id 
@@ -86,40 +104,19 @@ movie_id1<- movie_id %>%
  group_by (movie_id, title) %>%
   summarise (num = n())
 
-head(movie_id)
 
 # Joining best 100 movies with their movie_id
 movie_id2 <- movie_id1 %>%
-  inner_join(best_movies, by = c("title"= "title", "production_year" = "production_year")) 
+  inner_join(best_movies, by = c("title"= "title")) 
 
-movie_id100<-movie_id2 %>%
-  head (100)
 
-movie_id100[!duplicated(movie_id100[,c("title")]), ]
+movie_id2[!duplicated(movie_id2[,c("title")]), ]
 ```
 
 
-```{r, message=FALSE, warning=FALSE}
-# Extracting 100 best movies gross info from database
-
-sql_gross <- "
-SELECT t.id, t.title, mi.info AS gross_info
-FROM title t
-JOIN movie_info mi ON mi.movie_id = t.id;
-"
-
-gross <- db %>%
-dbGetQuery(sql_gross)
-head(gross)
-
-
-dbGetQuery(db, "SELECT * FROM info_type WHERE info = 'gross';")
-
-dbGetQuery(db, "
-SELECT * FROM info_type 
-WHERE info LIKE '%gross%';
-")
-
+```{r, message=FALSE, warning=FALSE,results='hide'}
+# Extracting gross info for the movies
+# Indexed WHERE with join to increase efficiency
 movie_gross<- dbGetQuery(db, "
 SELECT t.id, t.title, mi.info AS gross_info, movie_id, production_year
 FROM title t
@@ -127,115 +124,146 @@ JOIN movie_info mi ON mi.movie_id = t.id
 WHERE mi.info_type_id = 107
 ")
 
-movie_gross_1 <- movie_gross %>%
+movie_gross_USA <- movie_gross %>%
   group_by (movie_id)%>%
   filter(grepl("USA", gross_info))%>%
   summarise(max(gross_info))
-
-movie_gross100<- movie_gross_1%>%
-  inner_join(movie_id2, by= c("movie_id"="movie_id"))%>%
-  head(100)
-
-movie_test <- movie_gross100 %>%
-  mutate(Revenue=as.numeric(gross_info))
-  
-```
-
-```{r, message=FALSE, warning=FALSE}
-# Extracting gross info for best movies
-
-sql_gross <- "
-SELECT t.id, t.title, mi.info AS gross_info
-FROM title t
-JOIN movie_info mi ON mi.movie_id = t.id;
-"
-
-gross <- db %>%
-dbGetQuery(sql_gross)
-head(gross)
-
-
-dbGetQuery(db, "SELECT * FROM info_type WHERE info = 'gross';")
-
-dbGetQuery(db, "
-SELECT * FROM info_type 
-WHERE info LIKE '%gross%';
-")
-
-movie_gross<- dbGetQuery(db, "
-SELECT t.id, t.title, mi.info AS gross_info, movie_id, production_year
-FROM title t
-JOIN movie_info mi ON mi.movie_id = t.id
-WHERE mi.info_type_id = 107
-")
 
 movie_gross_1 <- movie_gross %>%
   group_by (movie_id)%>%
   filter(grepl("USA", gross_info))%>%
   summarise(max(gross_info))
 
-movie_gross100<- movie_gross_1%>%
-  inner_join(movie_id2, by= c("movie_id"="movie_id"))%>%
-  head(100)
+movie_gross_2<- movie_gross_1%>%
+  inner_join(movie_id2, by= c("movie_id"="movie_id"))
 
-names(movie_gross100)[names(movie_gross100)=="max(gross_info)"]<-"gross_info" 
+names(movie_gross_2)[names(movie_gross_2)=="max(gross_info)"]<-"gross_info" 
+
+# Change earnings into numbers                                                                             
+movie_num <- movie_gross_2 %>%
+  filter(grepl("\\(USA\\)", gross_info))%>%
+  mutate(gross_info = str_extract(gross_info, "^\\$[0-9]+"))%>%
+  mutate(gross_string = str_extract(gross_info, "^\\$[0-9,]+"),
+         gross = parse_number(gross_string))
 ```
 
-```{r, message=FALSE, warning=FALSE}
-# Joining directors info with best movies
 
-movie_people_info <- movie_gross100 %>%
+```{r, message=FALSE, warning=FALSE}
+# Joining people info with movies info
+
+movie_people_info <- movie_num%>%
   inner_join(all_info, by= c("movie_id"="movie_id"))
 
+#identifying each role with role_id
 MP_info <- movie_people_info %>%
-  select(title,movie_id, gross_info, production_year,gender,rating,votes, name)
+  select(title,movie_id, gross,gender,rating,votes, role_id)%>%
+  mutate(ratings=parse_number(rating))%>%
+  inner_join(role_type, by= c("role_id"="id"))
+
+# data of only females
+MP_info_F <- MP_info %>%
+  select(title,movie_id, gross,gender,ratings,votes, role)%>%
+  filter(gender=="f")
+
+# data of only males
+MP_info_M <-MP_info %>%
+  select(title,movie_id, gross,gender,ratings,votes, role)%>%
+  filter(gender=="m")
+
+MP_info<- na.omit(MP_info)
+
+# Number of males and females in each role
+MP_info_num <- MP_info %>%
+  select(gender,role)%>%
+  group_by(role, gender)%>%
+  summarize(sum=n())
+
+
+MP_info_num<- na.omit(MP_info_num)
 
 ```
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
+#M/F ratio of each role
+
+ggplot(data=MP_info_num, aes(x=role, y=sum)) +
+  geom_bar(aes( fill=gender),stat = "Identity", position = "stack")+
+  labs(title = "Number of Male and Female in Popular Movies", x = "Role Type", y = "Count")
+```
+
+
+There is appearant gender imbalance in all roles. Particularly, female directors, composers, and cinematographers make up less than 5 percent of the total number. There are slightly more female writers and producers in comparison. In contrast,the female significantly outnumber males in costume design. 
+
+Looking at the numbers, one might hypothesize whether females are less capable in areas such as directing and more capable in costume design. To further investigate this question, take a look at the performance of each films, in terms of their rating and gross earnings. 
+
+
+```{r, message=FALSE, warning=FALSE,fig.width=10,fig.height=10}
 # Visualizing findings
 library(scales)
 
-ggplot(data=MP_info, aes(x=gross_info, y=rating)) +
-  geom_point(aes(color=gender)) +
-  labs(title = "Quality of Best 100 Movies by Male and Female Directors", x = "Revenue($)", y = "Rating")
- 
---------
-  CHECKING THROUGH HERE !! 
-   
-# We need to set the revenue units first to set x-axis to annotate 
-  scale_y_discrete(labels = c("4.5", "5.0", "5.5", "6.0", "6.5", "7.0", "7.5", "8.0", "8.5"), limits = c(4.0, 9.0), breaks = seq(4.5,8.5,0.5)) +
-    scale_x_discrete(labels = c("25M", "50M", "75M", "100M"), limits = c(0,105000000), breaks = seq(25000000,100000000, 25000000)) 
-  
+#Female
+base_plot_f <- ggplot(MP_info_F, aes(x=gross, y=ratings)) +
+  geom_point(alpha=0.1) +
+  labs(title = "Females Behind the Scenes of Popular Movies", x = "Revenue(million $)", y = "Rating")+
+  facet_wrap(~role, ncol=2)+
+  theme(
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(), 
+    panel.background = element_blank(),
+    panel.border = element_blank(),
+    strip.background = element_blank(),
+    plot.title = element_text(size=8)
+    )+
+  scale_y_continuous(
+    limits = c(4.0, 9.0),
+    breaks=c(4.0, 5.0, 6.0, 7.0, 8.0, 9.0),
+    labels= c("4.0", "5.0", "6.0", "7.0", "8.0", "9.0"))+
+  scale_x_continuous(expand=c(0.00,0.00),
+    limits = c(0,1050),
+    breaks=seq(250,1000, 250),
+    labels= c("25", "50", "75", "100"))
 
-# Examples of annotating and so on from babynames hw
-annotate("segment", x=1940, xend=1948, y=0.5, yend=0.5, color="black")+
-annotate("segment", x=1940, xend=1940, y=0.4, yend=0.5, color="black") +
+#male
+base_plot_m <- ggplot(MP_info_M, aes(x=gross, y=ratings)) +
+  geom_point(alpha=0.1) +
+  labs(title = "Males Behind the Scenes of Popular Movies", x = "Revenue(million $)", y = "Rating")+
+  facet_wrap(~role,ncol=2)+
+  theme(
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(), 
+    panel.background = element_blank(),
+    panel.border = element_blank(),
+    strip.background = element_blank(),
+    plot.title = element_text(size=8)
+  )+
+  scale_y_continuous(
+    limits = c(4.0, 9.0),
+    breaks=c(4.0, 5.0, 6.0, 7.0, 8.0, 9.0),
+    labels= c("4.0", "5.0", "6.0", "7.0", "8.0", "9.0"))+
+  scale_x_continuous(expand=c(0.00,0.00),
+    limits = c(0,1050),
+    breaks=seq(250,1000, 250),
+    labels= c("25", "50", "75", "100"))
 
-labels =c("1940", "'60", "'80", "2000" ), limits =c(1930,2012) ,breaks =seq(1940,2000,20
 
 
-                                                                            
-# Testing changing gross things to number                                                                              
-movie_test <- movie_gross100 %>%
-  mutate(Revenue=as.numeric(gross_info))                                                                              
-                                                                              
-# Example from mp3                                                                               
-mutate (Difficulty= if_else(as.numeric(numeric_rating)<10, "Easy", ifelse(as.numeric(numeric_rating)<30, "Moderate", "Hard")))
-
-
+grid.arrange(base_plot_f,base_plot_m , ncol=2)
 ```
 
+It seems that there is no performance difference between the films produced by males or females. Films made by female directors do not produce films that has lower rating or earn less revenue and it is the same for films made by male costume designers. This data counters the earlier assumption and points to an insight that is present in Dr. Stacy Smith¡¯s TED talk The data behind Hollywood's sexism. There is a lack of female directors due to ingrained gender stereotype that females are not suitable for leadership positions. Similarly in costume design, [a workspace traditionally thought of as feminine](https://www.theguardian.com/film/2014/jul/22/gender-bias-film-industry-75-percent-male). 
 
-According to our data, 5% of best 100 movies is directed by female director, which means gender diversity is not satisfied. 
-In terms of the movie quality, we could not find significant evidence to prove that the effect of female directors on film performance would be less than the effect of male directors.  
-In our graph, red points (movies by female directors) are situated on high revenue and high movie rating. 
+Numbers can provide some clues but cannot tell the full story. Whether you find the numbers shocking or surprising, it might be too soon to come to a conclusion. The movies in this studies are collected from a biased selection of movies with votes greater than 10,000. The popularity of a movie might not truly reflect its quality since it can be largely impacted by the venue and timing of showing, advertisement method, genre, popularity of the actors/actresses¡­ and so on. Further investigation of greater range of movies are required to obtain more accurate information. 
+
+Nevertheless, these number reveal that the film industry is still a male dominate world and gender bias is one likely factor that contributes to the gender division in the film industry. The paper "Gender Stereotypes Are Alive, Well, and Busy Producing Workplace Discrimination" published by Cambridge University, further delineates how gender bias in workplace are is still prominent in the contemporary society.
+
+![Garrett Bradley](https://image.nola.com/home/nola-media/width600/img/entertainment_impact_tvfilm/photo/garrett-bradley-c2452b3fae82f18e.jpg)
+
+It is important to note that women made significant impact in the film world. Garrett Bradley is a young 32-year-old director and alumni of Smith College who won the prestigious 2017 Sundance Film Festival jury award. Bradley¡¯s films give rare opportunities of seeing the world through the perspective of a women of color. Many recent papers shows that gender diversity is beneficial for the environment and prosperity of the film industry. "Female Directors And Firm Performance" published by the [Kwik Kian Gie School of Business](https://www.researchgate.net/publication/317183034_FEMALE_DIRECTORS_AND_FIRM_PERFORMANCE_EVIDENCE_FROM_THE_UK_LISTED_FIRMS?enrichId=rgreq-28cf48989bff249ec4e0ef497945aa8b-XXX&enrichSource=Y292ZXJQYWdlOzMxNzE4MzAzNDtBUzo0OTkxNjcwMzU0MzI5NjBAMTQ5NjAyMjEwMzQ3NQ%3D%3D&el=1_x_2&_esc=publicationCoverPdf) reveals that gender diversity improves creativity and decision making for better problem solvings, which leads to positive results on film market. It is time for us to pay more attention to the gender division in the film industry. Less number does not mean less capability. 
 
 
 
-Through our database querying, we conclude that gender diversity would help to improve the film field. Even if there are a few female directors who made big hit, their impact is not small.  
 
-Not only through our data findings, there have been many recent papers to show that gender diversity would be good for better environment and more prosperity in film field. According to a paper "Female Directors And Firm Performance" published by [Kwik Kian Gie School of Business](https://www.researchgate.net/publication/317183034_FEMALE_DIRECTORS_AND_FIRM_PERFORMANCE_EVIDENCE_FROM_THE_UK_LISTED_FIRMS?enrichId=rgreq-28cf48989bff249ec4e0ef497945aa8b-XXX&enrichSource=Y292ZXJQYWdlOzMxNzE4MzAzNDtBUzo0OTkxNjcwMzU0MzI5NjBAMTQ5NjAyMjEwMzQ3NQ%3D%3D&el=1_x_2&_esc=publicationCoverPdf), gender diversity helps to improve creativity, innovation, and decision making for better problem solvings, therefore, causes positive results on film market.
+
 
 
 
@@ -243,13 +271,19 @@ Not only through our data findings, there have been many recent papers to show t
 
 GitHub repository[^1]
 
-Gender Stereotypes Are Alive, Well, and Busy Producing Workplace Discrimination, Cambridge University [^2]
 
-Female Directors And Firm Performance, Kwik Kian Gie School of Business [^3]
+Inequality in 900 Popular Films [^2]
+
+Gender bias in the film industry: 75% of blockbuster crews are male[^3]
+
+Gender Stereotypes Are Alive, Well, and Busy Producing Workplace Discrimination, Cambridge University [^4]
+
+Female Directors And Firm Performance, Kwik Kian Gie School of Business [^5]
 
 [^1]: 
-[^2]: https://www.cambridge.org/core/journals/industrial-and-organizational-psychology/article/gender-stereotypes-are-alive-well-and-busy-producing-workplace-discrimination/79B1C722310ABBBE8D0EA90157689B97
-[^3]: https://www.researchgate.net/publication/317183034_FEMALE_DIRECTORS_AND_FIRM_PERFORMANCE_EVIDENCE_FROM_THE_UK_LISTED_FIRMS?enrichId=rgreq-28cf48989bff249ec4e0ef497945aa8b-XXX&enrichSource=Y292ZXJQYWdlOzMxNzE4MzAzNDtBUzo0OTkxNjcwMzU0MzI5NjBAMTQ5NjAyMjEwMzQ3NQ%3D%3D&el=1_x_2&_esc=publicationCoverPdf 
-Female Directors And Firm Performance, Kwik Kian Gie School of Business 
+[^2]:https://annenberg.usc.edu/sites/default/files/Dr_Stacy_L_Smith-Inequality_in_900_Popular_Films.pdf
+[^3]: https://www.theguardian.com/film/2014/jul/22/gender-bias-film-industry-75-percent-male
+[^4]: https://www.cambridge.org/core/journals/industrial-and-organizational-psychology/article/gender-stereotypes-are-alive-well-and-busy-producing-workplace-discrimination/79B1C722310ABBBE8D0EA90157689B97
+[^5]: https://www.researchgate.net/publication/317183034_FEMALE_DIRECTORS_AND_FIRM_PERFORMANCE_EVIDENCE_FROM_THE_UK_LISTED_FIRMS?enrichId=rgreq-28cf48989bff249ec4e0ef497945aa8b-XXX&enrichSource=Y292ZXJQYWdlOzMxNzE4MzAzNDtBUzo0OTkxNjcwMzU0MzI5NjBAMTQ5NjAyMjEwMzQ3NQ%3D%3D&el=1_x_2&_esc=publicationCoverPd
 
 
